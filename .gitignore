@@ -3,17 +3,38 @@ __pycache__/
 *.pyc
 *.pyo
 *.pyd
+*.log
+*.sqlite3
+*.db
 
-# Virtualenv
+# Virtual env
 .venv/
 venv/
+env/
 
-# VS Code
+# Build
+build/
+dist/
+*.spec
+
+# OS
+Thumbs.db
+.DS_Store
+
+# IDE
 .vscode/
+.idea/
 
-# Banco local
+# Executáveis
+*.exe
+*.zip
+
+# Banco local do usuário
 membros.db
+# Arquivos do usuário
+historico_atividades.txt
 
-# Saídas geradas
-*.pdf
-Certificados_Escoteiros/
+# Builds distribuíveis
+*.rar
+*.zip
+*.7z
