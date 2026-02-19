@@ -1,163 +1,162 @@
-🎖️ Gerador de Certificados Escoteiros
+🎯 Automação de Emissão de Certificados — Caso Real
+Contexto
 
-Sistema desktop desenvolvido em Python para automatizar a emissão de certificados de participação em atividades escoteiras.
+Este projeto foi desenvolvido de forma voluntária para resolver um problema operacional real em um grupo escoteiro.
 
-Projeto voluntário criado para apoiar o grupo escoteiro da minha filha, eliminando falhas humanas no processo manual de emissão de certificados e garantindo que todas as crianças participantes sejam reconhecidas corretamente.
+Após cada atividade, era necessário emitir certificados de participação para todas as crianças.
+O processo era totalmente manual: abrir um documento, editar nome por nome e imprimir.
 
-📌 Problema
+Isso gerava consequências frequentes:
 
-A geração dos certificados era feita manualmente:
+participantes esquecidos
 
-Digitação nome por nome
+erros de digitação
 
-Risco de esquecer participantes
+retrabalho
 
-Erros de ortografia
+tempo excessivo após eventos
 
-Retrabalho constante
+dependência de uma única pessoa atenta
 
-Processo demorado após cada atividade
+O problema não era técnico — era humano.
+Portanto, a solução precisava priorizar redução de erro operacional, não apenas automação.
 
-Isso impactava diretamente a organização e a experiência das crianças.
+Objetivo
 
-💡 Solução
+Criar uma ferramenta simples o suficiente para qualquer responsável utilizar sem treinamento técnico e confiável o suficiente para garantir que nenhum participante fosse omitido.
 
-Foi desenvolvido um aplicativo desktop simples e direto ao ponto que:
+Critérios definidos:
 
-✔ Controla cadastro de membros
-✔ Permite selecionar quem participou da atividade
-✔ Gera múltiplos certificados automaticamente
-✔ Garante que ninguém fique de fora
-✔ Reduz o tempo de emissão de horas para minutos
+zero dependência de software externo
 
-🖥️ Interface
+uso por usuários não técnicos
 
-O usuário apenas:
+impedir esquecimentos
 
-Marca quem participou
+execução rápida após atividades
 
-Preenche dados da atividade
+padronização visual dos certificados
 
-Clica em gerar
+Decisões de Engenharia
+Desktop ao invés de Web
 
-O sistema faz todo o resto.
+Optado por aplicação local porque:
 
-⚙️ Funcionalidades
-Cadastro
+uso offline em locais sem internet
 
-Cadastro de membros por seção
+evitar login/senha para usuários leigos
 
-Busca rápida
+reduzir fricção de uso
 
-Remoção com duplo clique
+instalação inexistente (executável direto)
 
-Participação
+Banco SQLite local
 
-Seleção por checkbox
+Motivação:
 
-Marcar todos / desmarcar todos
+persistência sem servidor
 
-Evita esquecimentos
+zero configuração
 
-Certificados
+confiável para pequeno volume
 
-Geração automática (3 por folha A4)
+evita perda de cadastro
 
-Ajuste automático de tamanho do nome
+Interface orientada à prevenção de erro
 
-Data por extenso
+O sistema não apenas gera certificados — ele impede falhas humanas.
 
-Layout padronizado
+Implementações:
 
-Produtividade
+seleção por checkbox ao invés de digitação
 
-Histórico de atividades (dropdown automático)
+exibição de quem NÃO participou antes de gerar
 
-Pré-visualização antes de gerar
+histórico automático de atividades
 
-Importação de membros via Excel/CSV
+pré-visualização antes da emissão
 
-Exportação dos participantes da atividade
+ajuste automático de tamanho de texto
 
-Distribuição
+data por extenso automática
 
-Aplicação empacotada em .exe
+A prioridade foi:
 
-Usuários não precisam instalar Python
+reduzir decisões humanas, não acelerar digitação
 
-🧠 Tecnologias utilizadas
+Geração de PDF programática
 
-Python 3
+Uso do ReportLab para:
 
-Tkinter (interface gráfica)
+layout fixo
 
-ReportLab (geração de PDF)
+padronização
 
-SQLite (banco local)
+múltiplos certificados por folha
 
-OpenPyXL (importação Excel)
+evitar alterações manuais em Word
 
-PyInstaller (empacotamento)
+Empacotamento para usuário leigo
 
-📁 Estrutura
-app.py
-membros.db
-logo_grupo.png
-Certificado_limpo.png
-historico_atividades.txt
+Aplicação distribuída como .exe:
 
-🚀 Como executar
-Usuário comum
+sem necessidade de Python
 
-Basta abrir:
+sem instalação
 
-Certificados_Escoteiros.exe
+sem permissões administrativas
 
+executável portátil
 
-Nenhuma instalação necessária.
+Isso foi essencial para adoção real.
 
-Desenvolvedor
-pip install -r requirements.txt
-python app.py
+Resultado
+Antes
 
-🏗️ Motivação
+Processo manual pós-evento demorado e sujeito a falhas.
 
-Esse projeto nasceu de uma necessidade real.
+Depois
 
-Em trabalhos voluntários, tempo e organização são limitados.
-Automatizar esse processo permitiu que os responsáveis focassem no mais importante: a experiência das crianças, não em tarefas repetitivas.
+Geração em minutos com garantia de consistência.
 
-📈 Resultado
+Impactos observados:
 
-Antes:
+eliminação de esquecimentos
 
-Processo manual
+redução completa de retrabalho
 
-Alto risco de erro
+padronização do documento
 
-Tempo longo após cada evento
+qualquer responsável consegue operar
 
-Depois:
+Tecnologias
 
-Geração em minutos
+Python
 
-Nenhum participante esquecido
+Tkinter
 
-Processo padronizado
+SQLite
 
-🤝 Contribuição
+ReportLab
 
-Projeto aberto para melhorias futuras:
+OpenPyXL
 
-Assinatura digital
+PyInstaller
 
-Envio automático por e-mail
+Aprendizados
 
-Integração com planilhas online
+Este projeto demonstrou na prática que:
 
-Multi-grupos
+qualidade de software não é apenas ausência de bugs — é prevenção de erro humano
 
-👨‍💻 Autor
+O foco não foi apenas automatizar, mas desenhar uma experiência segura para usuários não técnicos.
 
-Desenvolvido por Fernando Ferraz
-Projeto voluntário para apoio educacional e organizacional.
+Sobre o projeto
+
+Projeto voluntário aplicado em ambiente real com usuários reais.
+
+Criado para melhorar organização e reconhecimento das crianças participantes, garantindo confiabilidade no processo.
+
+Autor
+
+Fernando Ferraz
