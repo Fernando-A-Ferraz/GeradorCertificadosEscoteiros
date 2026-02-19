@@ -1,0 +1,19 @@
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# Virtualenv
+.venv/
+venv/
+
+# VS Code
+.vscode/
+
+# Banco local
+membros.db
+
+# Saídas geradas
+*.pdf
+Certificados_Escoteiros/
