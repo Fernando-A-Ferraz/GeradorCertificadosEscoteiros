@@ -1,162 +1,148 @@
-🎯 Automação de Emissão de Certificados — Caso Real
-Contexto
+# 🎯 Automação de Emissão de Certificados — Caso Real
+
+## Contexto
 
 Este projeto foi desenvolvido de forma voluntária para resolver um problema operacional real em um grupo escoteiro.
 
-Após cada atividade, era necessário emitir certificados de participação para todas as crianças.
+Após cada atividade, era necessário emitir certificados de participação para todas as crianças.  
 O processo era totalmente manual: abrir um documento, editar nome por nome e imprimir.
 
 Isso gerava consequências frequentes:
 
-participantes esquecidos
+- participantes esquecidos
+- erros de digitação
+- retrabalho
+- tempo excessivo após eventos
+- dependência de uma única pessoa atenta
 
-erros de digitação
+O problema não era técnico — era humano.  
+Portanto, a solução precisava priorizar **redução de erro operacional**, não apenas automação.
 
-retrabalho
+---
 
-tempo excessivo após eventos
+## Objetivo
 
-dependência de uma única pessoa atenta
+Criar uma ferramenta:
 
-O problema não era técnico — era humano.
-Portanto, a solução precisava priorizar redução de erro operacional, não apenas automação.
+- simples o suficiente para qualquer responsável utilizar **sem treinamento técnico**
+- confiável o suficiente para garantir que **nenhum participante fosse omitido**
 
-Objetivo
+### Critérios definidos
 
-Criar uma ferramenta simples o suficiente para qualquer responsável utilizar sem treinamento técnico e confiável o suficiente para garantir que nenhum participante fosse omitido.
+- **zero dependência de software externo**
+- uso por **usuários não técnicos**
+- impedir esquecimentos
+- execução rápida após atividades
+- padronização visual dos certificados
 
-Critérios definidos:
+---
 
-zero dependência de software externo
+## Decisões de Engenharia
 
-uso por usuários não técnicos
-
-impedir esquecimentos
-
-execução rápida após atividades
-
-padronização visual dos certificados
-
-Decisões de Engenharia
-Desktop ao invés de Web
+### Desktop ao invés de Web
 
 Optado por aplicação local porque:
 
-uso offline em locais sem internet
+- uso offline em locais sem internet
+- evitar login/senha para usuários leigos
+- reduzir fricção de uso
+- instalação inexistente (executável direto)
 
-evitar login/senha para usuários leigos
-
-reduzir fricção de uso
-
-instalação inexistente (executável direto)
-
-Banco SQLite local
+### Banco SQLite local
 
 Motivação:
 
-persistência sem servidor
+- persistência sem servidor
+- zero configuração
+- confiável para pequeno volume
+- evita perda de cadastro
 
-zero configuração
+### Interface orientada à prevenção de erro
 
-confiável para pequeno volume
-
-evita perda de cadastro
-
-Interface orientada à prevenção de erro
-
-O sistema não apenas gera certificados — ele impede falhas humanas.
+O sistema não apenas gera certificados — ele **impede falhas humanas**.
 
 Implementações:
 
-seleção por checkbox ao invés de digitação
+- seleção por checkbox ao invés de digitação
+- exibição de quem **NÃO participou** antes de gerar
+- histórico automático de atividades
+- pré-visualização antes da emissão
+- ajuste automático de tamanho de texto
+- data por extenso automática
 
-exibição de quem NÃO participou antes de gerar
+**Prioridade do design:**
 
-histórico automático de atividades
+> Reduzir decisões humanas, não acelerar digitação.
 
-pré-visualização antes da emissão
+### Geração de PDF programática
 
-ajuste automático de tamanho de texto
+Uso do **ReportLab** para:
 
-data por extenso automática
+- layout fixo
+- padronização
+- múltiplos certificados por folha
+- evitar alterações manuais em Word
 
-A prioridade foi:
+### Empacotamento para usuário leigo
 
-reduzir decisões humanas, não acelerar digitação
+Aplicação distribuída como `.exe`:
 
-Geração de PDF programática
-
-Uso do ReportLab para:
-
-layout fixo
-
-padronização
-
-múltiplos certificados por folha
-
-evitar alterações manuais em Word
-
-Empacotamento para usuário leigo
-
-Aplicação distribuída como .exe:
-
-sem necessidade de Python
-
-sem instalação
-
-sem permissões administrativas
-
-executável portátil
+- sem necessidade de Python
+- sem instalação
+- sem permissões administrativas
+- executável portátil
 
 Isso foi essencial para adoção real.
 
-Resultado
-Antes
+---
+
+## Resultado
+
+### Antes
 
 Processo manual pós-evento demorado e sujeito a falhas.
 
-Depois
+### Depois
 
 Geração em minutos com garantia de consistência.
 
-Impactos observados:
+**Impactos observados:**
 
-eliminação de esquecimentos
+- eliminação de esquecimentos
+- redução completa de retrabalho
+- padronização do documento
+- qualquer responsável consegue operar
 
-redução completa de retrabalho
+---
 
-padronização do documento
+## Tecnologias
 
-qualquer responsável consegue operar
+- Python
+- Tkinter
+- SQLite
+- ReportLab
+- OpenPyXL
+- PyInstaller
 
-Tecnologias
+---
 
-Python
-
-Tkinter
-
-SQLite
-
-ReportLab
-
-OpenPyXL
-
-PyInstaller
-
-Aprendizados
+## Aprendizados
 
 Este projeto demonstrou na prática que:
 
-qualidade de software não é apenas ausência de bugs — é prevenção de erro humano
+- qualidade de software não é apenas ausência de bugs — é **prevenção de erro humano**
+- o foco não foi apenas automatizar, mas desenhar uma experiência **segura** para usuários não técnicos
 
-O foco não foi apenas automatizar, mas desenhar uma experiência segura para usuários não técnicos.
+---
 
-Sobre o projeto
+## Sobre o projeto
 
 Projeto voluntário aplicado em ambiente real com usuários reais.
 
 Criado para melhorar organização e reconhecimento das crianças participantes, garantindo confiabilidade no processo.
 
-Autor
+---
 
-Fernando Ferraz
+## Autor
+
+**Fernando Ferraz**
