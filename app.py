@@ -26,6 +26,8 @@ from babel.dates import format_date
 # =========================
 # Config
 # =========================
+APP_VERSION = "1.1.0"
+
 APP_DIR = Path(__file__).parent
 DATA_DIR = Path.home() / "Documents" / "Certificados_Escoteiros"
 DATA_DIR.mkdir(parents=True, exist_ok=True)
@@ -44,16 +46,7 @@ PAGE_W, PAGE_H = A4
 CHECK_OFF = "☐"
 CHECK_ON = "☑"
 
-SECAO_ORDER = [
-    "Lobinhos",
-    "Escoteiros",
-    "Sênior",
-    "Pioneiros",
-    "Chefes",
-    "Diretoria",
-    "Outro",
-]
-SECAO_RANK = {s: i for i, s in enumerate(SECAO_ORDER)}
+
 
 HIST_ATIVIDADES_PATH = APP_DIR / "historico_atividades.txt"
 MAX_HIST = 25
@@ -114,15 +107,29 @@ def save_hist_atividades(nova: str):
 # =========================
 def db_init():
     with sqlite3.connect(DB_PATH) as conn:
-        conn.execute(
-            """
-            CREATE TABLE IF NOT EXISTS membros(
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                nome TEXT NOT NULL,
-                secao TEXT NOT NULL
-            )
-            """
+        conn.execute("""
+        CREATE TABLE IF NOT EXISTS membros(
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            nome TEXT NOT NULL,
+            secao TEXT NOT NULL
         )
+        """)
+        conn.execute("""
+        CREATE UNIQUE INDEX IF NOT EXISTS ux_membros_nome_nocase
+        ON membros(nome COLLATE NOCASE)
+        """)
+
+        conn.execute("""
+        CREATE TABLE IF NOT EXISTS secoes(
+            nome TEXT PRIMARY KEY
+        )
+        """)
+
+        # secoes padrão
+        padrao = ["Lobinhos", "Escoteiros", "Sênior", "Pioneiros", "Chefe", "Diretoria", "Parente", "Outro"]
+        for s in padrao:
+            conn.execute("INSERT OR IGNORE INTO secoes(nome) VALUES(?)", (s,))
+
         conn.commit()
 
 
@@ -130,32 +137,90 @@ def db_add(nome, secao):
     nome = (nome or "").strip()
     secao = (secao or "").strip() or "Outro"
     if not nome:
-        return
-    with sqlite3.connect(DB_PATH) as conn:
-        conn.execute(
-            "INSERT INTO membros(nome, secao) VALUES(?, ?)",
-            (nome, secao),
-        )
-        conn.commit()
+        return "nome_vazio"
 
+    try:
+        with sqlite3.connect(DB_PATH) as conn:
+            conn.execute(
+                "INSERT INTO membros(nome, secao) VALUES(?, ?)",
+                (nome, secao),
+            )
+            conn.commit()
+        return "ok"
+    except sqlite3.IntegrityError:
+        # disparado pelo índice UNIQUE (nome)
+        return "duplicado"
 
 def db_list():
     with sqlite3.connect(DB_PATH) as conn:
-        cur = conn.execute("SELECT id, nome, secao FROM membros")
-        rows = cur.fetchall()
+        cur = conn.execute("""
+            SELECT id, nome, secao
+            FROM membros
+            ORDER BY secao COLLATE NOCASE, nome COLLATE NOCASE
+        """)
+        return cur.fetchall()
+def db_list_secoes():
+    with sqlite3.connect(DB_PATH) as conn:
+        cur = conn.execute("""
+            SELECT DISTINCT secao
+            FROM membros
+            WHERE secao IS NOT NULL AND secao <> ''
+            ORDER BY secao COLLATE NOCASE
+        """)
+        return [row[0] for row in cur.fetchall()]
+
+
 
     # ordena por secao (ordem fixa) e nome
     def key(r):
         _id, nome, secao = r
-        return (SECAO_RANK.get(secao, 999), (nome or "").lower())
+    return ((secao or "").lower(), (nome or "").lower())
 
-    return sorted(rows, key=key)
+ 
 
 
 def db_delete(mid):
     with sqlite3.connect(DB_PATH) as conn:
         conn.execute("DELETE FROM membros WHERE id=?", (mid,))
         conn.commit()
+        
+def db_update(mid: int, nome: str, secao: str):
+    nome = (nome or "").strip()
+    secao = (secao or "").strip() or "Outro"
+    if not nome:
+        return "nome_vazio"
+
+    try:
+        with sqlite3.connect(DB_PATH) as conn:
+            conn.execute(
+                "UPDATE membros SET nome=?, secao=? WHERE id=?",
+                (nome, secao, mid),
+            )
+            conn.commit()
+        return "ok"
+    except sqlite3.IntegrityError:
+        return "duplicado"        
+def db_existe_nome(nome: str, ignore_id: int | None = None) -> bool:
+    nome = (nome or "").strip()
+    if not nome:
+        return False
+
+    with sqlite3.connect(DB_PATH) as conn:
+        if ignore_id is None:
+            cur = conn.execute(
+                "SELECT 1 FROM membros WHERE nome = ? COLLATE NOCASE LIMIT 1",
+                (nome,),
+            )
+        else:
+            cur = conn.execute(
+                "SELECT 1 FROM membros WHERE nome = ? COLLATE NOCASE AND id<>? LIMIT 1",
+                (nome, ignore_id),
+            )
+        return cur.fetchone() is not None        
+def db_existe_membro(nome: str, secao: str, ignore_id: int | None = None) -> bool:
+    
+    return db_existe_nome(nome, ignore_id=ignore_id)
+
 
 
 def db_find_by_name(nome: str):
@@ -169,6 +234,15 @@ def db_find_by_name(nome: str):
             (nome,),
         )
         return cur.fetchone()
+    
+def db_list_secoes():
+    with sqlite3.connect(DB_PATH) as conn:
+        cur = conn.execute("SELECT nome FROM secoes ORDER BY nome COLLATE NOCASE")
+        return [r[0] for r in cur.fetchall()]
+def db_add_secao(nome):
+    with sqlite3.connect(DB_PATH) as conn:
+        conn.execute("INSERT OR IGNORE INTO secoes(nome) VALUES(?)", (nome.strip(),))
+        conn.commit()    
 
 
 # =========================
@@ -186,17 +260,56 @@ def draw_left_fit(c, text, x_left, y, max_width, font="Helvetica-Bold", font_siz
     c.drawString(x_left, y, text)
 
 
-def draw_center_wrap(c, text, cx, y_top, max_width, line_height,
-                     font="Helvetica", font_size=11, max_lines=2):
-    lines = simpleSplit(text, font, font_size, max_width)
+
+def draw_mixed_center_wrap(c, cx, y, max_width, parts, font_size=11, line_gap=13, max_lines=2):
+    """
+    Quebra automaticamente mantendo negrito nas partes.
+    parts = [("texto", "fonte"), ...]
+    """
+    words = []
+    for text, font in parts:
+        for w in text.split(" "):
+            words.append((w + " ", font))
+
+    lines = []
+    current_line = []
+    current_width = 0
+
+    for word, font in words:
+        w = stringWidth(word, font, font_size)
+
+        if current_width + w > max_width and current_line:
+            lines.append(current_line)
+            current_line = []
+            current_width = 0
+
+        current_line.append((word, font))
+        current_width += w
+
+    if current_line:
+        lines.append(current_line)
+
+    # limita linhas
     if len(lines) > max_lines:
         lines = lines[:max_lines]
-        lines[-1] = lines[-1] + "..."
-    y = y_top
-    c.setFont(font, font_size)
+        # coloca "..." no final da última linha
+        last = lines[-1]
+        if last:
+            text, font = last[-1]
+            last[-1] = (text.rstrip() + "... ", font)
+
+    # desenha
     for line in lines:
-        c.drawCentredString(cx, y, line)
-        y -= line_height
+        total = sum(stringWidth(t, f, font_size) for t, f in line)
+        x = cx - total / 2
+
+        for text, font in line:
+            c.setFont(font, font_size)
+            c.drawString(x, y, text)
+            x += stringWidth(text, font, font_size)
+
+        y -= line_gap
+       
 
 
 # =========================
@@ -218,7 +331,7 @@ def draw_cert(c, x, y, w, h, nome, atividade, local, dias, linha_evento, cidade,
     max_w = w * 0.75
 
     # Linha: "Certificamos que" + Nome (mesma linha)
-    linha_y = y + h * 0.56
+    linha_y = y + h * 0.53
     c.setFont("Helvetica", 11)
     c.drawString(x + w * 0.22, linha_y, "Certificamos que")
 
@@ -226,30 +339,26 @@ def draw_cert(c, x, y, w, h, nome, atividade, local, dias, linha_evento, cidade,
     nome_max_w = (x + w * 0.78) - nome_x
     draw_left_fit(c, nome, nome_x, linha_y, nome_max_w, "Helvetica-Bold", 13, 9)
 
-    # Texto principal (atividade/local/dias)
-    draw_center_wrap(
-        c,
-        f"Participou do {atividade}, realizada em",
-        cx,
-        y + h * 0.49,
-        max_w,
-        13,
-        font="Helvetica",
-        font_size=11,
-        max_lines=2,
-    )
 
-    draw_center_wrap(
-        c,
-        f"{local} nos dias {dias}.",
-        cx,
-        y + h * 0.44,
-        max_w,
-        13,
-        font="Helvetica",
-        font_size=11,
-        max_lines=2,
-    )
+    # Texto principal (atividade/local/dias)
+    draw_mixed_center_wrap(
+    c,
+    cx,
+    y + h * 0.47,
+    max_w,
+    [
+        ("Participou do ", "Helvetica"),
+        (atividade, "Helvetica-Bold"),
+        (", realizada em ", "Helvetica"),
+        (local, "Helvetica-Bold"),
+        (" nos dias ", "Helvetica"),
+        (dias, "Helvetica-Bold"),
+        (".", "Helvetica"),
+    ],
+    font_size=11,
+)
+
+    
 
     # Linha do evento (negrito)
     c.setFont("Helvetica-Bold", 11)
@@ -404,7 +513,7 @@ def write_csv(path: str, rows: list[dict]):
 class App(tk.Tk):
     def __init__(self):
         super().__init__()
-        self.title("Certificados Escoteiros")
+        self.title(f"Certificados Escoteiros v{APP_VERSION}")
         self.geometry("1050x680")
         self.minsize(1050, 680)
 
@@ -428,13 +537,19 @@ class App(tk.Tk):
         ttk.Entry(form, textvariable=self.nome_var, width=40).grid(row=0, column=1, sticky="w", padx=6)
 
         ttk.Label(form, text="Seção:").grid(row=1, column=0, sticky="w", pady=6)
-        ttk.Combobox(
-            form,
-            textvariable=self.secao_var,
-            width=37,
-            state="readonly",
-            values=SECAO_ORDER,
-        ).grid(row=1, column=1, sticky="w", padx=6)
+        
+
+        self.secao_combo = ttk.Combobox(
+        form,
+        textvariable=self.secao_var,
+        width=37,
+        state="readonly",
+        values=db_list_secoes() or [
+        "Lobinhos","Escoteiros","Sênior","Pioneiros","Chefe","Diretoria","Outro"
+        ],
+        )
+        self.secao_combo.grid(row=1, column=1, sticky="w", padx=6)
+
 
         ttk.Button(left, text="Adicionar", command=self.add_membro).pack(anchor="w", pady=6)
         ttk.Separator(left).pack(fill="x", pady=10)
@@ -442,9 +557,12 @@ class App(tk.Tk):
         # ---------- Busca + Lista ----------
         ttk.Label(left, text="Membros (clique no ☑ para marcar)", font=("Segoe UI", 11, "bold")).pack(anchor="w")
 
-        self.busca_var = tk.StringVar()
+        self.busca_var = tk.StringVar(value="")  # garante vazio de verdade
         ttk.Entry(left, textvariable=self.busca_var).pack(fill="x", pady=4)
         self.busca_var.trace_add("write", lambda *_: self.refresh_list())
+
+        
+ 
 
         cols = ("sel", "nome", "secao")
         self.tree = ttk.Treeview(left, columns=cols, show="headings", height=18)
@@ -458,7 +576,8 @@ class App(tk.Tk):
         self.tree.pack(fill="both", expand=True)
 
         self.tree.bind("<Button-1>", self.on_tree_click)
-        self.tree.bind("<Double-1>", self.remover_tree_item)
+        self.tree.bind("<Double-1>", self.editar_membro)
+
 
         btns = ttk.Frame(left)
         btns.pack(fill="x", pady=6)
@@ -467,7 +586,9 @@ class App(tk.Tk):
         ttk.Button(btns, text="Importar (CSV/XLSX)", command=self.importar_membros).pack(side="left", padx=6)
         ttk.Button(btns, text="Exportar marcados", command=self.exportar_marcados).pack(side="left")
 
-        self.itens = {}  # iid(mid) -> {"checked": bool, "nome": str, "secao": str}
+        self.itens = {} 
+        self.after(50, self.refresh_list)
+# iid(mid) -> {"checked": bool, "nome": str, "secao": str}
 
         # ---------- Geração ----------
         ttk.Label(right, text="Gerar certificados", font=("Segoe UI", 12, "bold")).pack(anchor="w")
@@ -518,11 +639,15 @@ class App(tk.Tk):
 
         ttk.Label(
             right,
-            text="Dica: duplo clique em um membro remove do cadastro.",
+            text="Dica: duplo clique em um membro para editar (e também pode excluir).",
             foreground="#555",
         ).pack(anchor="w", pady=4)
 
-        self.refresh_list()
+    def atualizar_secoes(self):
+         self.secao_combo["values"] = db_list_secoes()
+         self.refresh_list()
+        
+        
 
     # ---------- Logo ----------
     def load_logo(self):
@@ -549,7 +674,8 @@ class App(tk.Tk):
             self.tree.delete(item)
         self.itens.clear()
 
-        termo = self.busca_var.get().strip().lower()
+        termo = " ".join((self.busca_var.get() or "").split()).lower()
+
 
         for mid, nome, secao in db_list():
             label = f"{nome} {secao}".lower()
@@ -582,6 +708,96 @@ class App(tk.Tk):
             return
         db_delete(int(row_id))
         self.refresh_list()
+    
+    def editar_membro(self, event):
+        row_id = self.tree.identify_row(event.y)
+        if not row_id:
+            return
+
+        mid = int(row_id)
+        atual_nome = self.itens[row_id]["nome"]
+        atual_secao = self.itens[row_id]["secao"]
+
+        win = tk.Toplevel(self)
+        win.title("Editar membro")
+        win.resizable(False, False)
+        win.transient(self)
+        win.grab_set()
+        
+        win.geometry("320x150")
+        win.update_idletasks()
+
+        w = win.winfo_width()
+        h = win.winfo_height()
+
+        
+        if w <= 1 or h <= 1:
+            w = win.winfo_reqwidth()
+            h = win.winfo_reqheight()
+
+        parent_x = self.winfo_rootx()
+        parent_y = self.winfo_rooty()
+        parent_w = self.winfo_width()
+        parent_h = self.winfo_height()
+
+        x = parent_x + (parent_w - w) // 2
+        y = parent_y + (parent_h - h) // 2
+
+        win.geometry(f"+{x}+{y}")
+
+
+        frm = ttk.Frame(win, padding=12)
+        frm.pack(fill="both", expand=True)
+
+        ttk.Label(frm, text="Nome:").grid(row=0, column=0, sticky="w")
+        nome_var = tk.StringVar(value=atual_nome)
+        entry_nome = ttk.Entry(frm, textvariable=nome_var, width=36)
+        entry_nome.grid(row=0, column=1, padx=6, pady=4)
+        entry_nome.focus_set()
+
+        ttk.Label(frm, text="Seção:").grid(row=1, column=0, sticky="w")
+        secao_var = tk.StringVar(value=atual_secao)
+        secoes = db_list_secoes() or ["Lobinhos", "Escoteiros", "Sênior", "Pioneiros", "Chefe", "Diretoria", "Outro"]
+        combo = ttk.Combobox(frm, textvariable=secao_var, values=secoes, state="readonly", width=33)
+        combo.grid(row=1, column=1, padx=6, pady=4)
+
+        btns = ttk.Frame(frm)
+        btns.grid(row=2, column=0, columnspan=2, sticky="e", pady=(10, 0))
+
+        def salvar():
+            novo_nome = nome_var.get().strip()
+            nova_secao = secao_var.get().strip()
+
+            if not novo_nome:
+                messagebox.showerror("Erro", "Nome não pode ficar vazio.", parent=win)
+                return
+
+            # evita duplicar (mesmo nome + mesma seção)
+            if db_existe_membro(novo_nome, nova_secao, ignore_id=mid):
+                messagebox.showerror("Erro", "Já existe um membro com esse nome nessa seção.", parent=win)
+                return
+
+            db_update(mid, novo_nome, nova_secao)
+            win.destroy()
+            self.refresh_list()
+
+        def excluir():
+            if not messagebox.askyesno("Remover", f"Remover '{atual_nome}' do cadastro?", parent=win):
+                return
+            db_delete(mid)
+            win.destroy()
+            self.refresh_list()
+
+        ttk.Button(btns, text="Excluir", command=excluir).pack(side="left")
+        ttk.Button(btns, text="Cancelar", command=win.destroy).pack(side="left", padx=6)
+        ttk.Button(btns, text="Salvar", command=salvar).pack(side="left")
+
+        win.bind("<Return>", lambda e: salvar())
+        win.bind("<Escape>", lambda e: win.destroy())
+
+
+
+
 
     def marcar_todos(self):
         for iid in self.itens:
@@ -599,16 +815,50 @@ class App(tk.Tk):
     def participantes_nao_marcados(self):
         return [info["nome"] for info in self.itens.values() if not info["checked"]]
 
+
+
     # ---------- Cadastro ----------
     def add_membro(self):
         nome = self.nome_var.get().strip()
         secao = self.secao_var.get().strip()
 
         if not nome:
-            messagebox.showerror("Erro", "Informe o nome.")
+            messagebox.showerror("Erro", "Nome não pode ficar vazio.")
+            return
+        if not secao:
+            messagebox.showerror("Erro", "Selecione uma seção.")
             return
 
-        db_add(nome, secao)
+    # bloqueia duplicado por NOME (independente da seção)
+        existente = db_find_by_name(nome)
+        if existente:
+            _id, nome_db, secao_db = existente
+            messagebox.showwarning(
+            "Já cadastrado",
+            f"'{nome_db}' já está cadastrado na seção '{secao_db}'.\n"
+            "Use a opção de editar para mudar a seção."
+            )
+            return
+
+        db_add_secao(secao)  # cria seção se não existir
+
+        status = db_add(nome, secao)  # db_add deve retornar "ok" ou "duplicado"
+        if status == "duplicado":
+            existente = db_find_by_name(nome)
+            secao_db = existente[2] if existente else "—"
+            messagebox.showwarning(
+                "Já cadastrado",
+                f"Já existe um membro com o nome '{nome}'. (Seção atual: '{secao_db}')"
+            )
+            return
+
+        if status != "ok":
+            messagebox.showerror("Erro", "Não foi possível cadastrar o membro.")
+            return
+
+        self.atualizar_secoes()  # aqui dentro, use self.secao_combo (não combo_secao)
+        messagebox.showinfo("Sucesso", f"Membro '{nome}' cadastrado com sucesso.")
+
         self.nome_var.set("")
         self.refresh_list()
 
